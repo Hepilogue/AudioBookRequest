@@ -3,12 +3,12 @@ from typing import Awaitable
 
 from app.internal.indexers.abstract import SessionContainer
 from app.internal.indexers.indexer_util import get_indexer_contexts
-from app.internal.models import Audiobook, ProwlarrSource
+from app.internal.models import Audiobook, ManualBookRequest, ProwlarrSource
 from app.util.log import logger
 
 
 async def edit_source_metadata(
-    book: Audiobook,
+    book: Audiobook | ManualBookRequest,
     sources: list[ProwlarrSource],
     container: SessionContainer,
 ):

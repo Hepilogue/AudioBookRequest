@@ -66,7 +66,7 @@ async def download_book(
     body = DownloadSourceBody(guid=guid, indexer_id=indexer_id)
     return await api_download_book(
         background_task=background_task,
-        asin=asin,
+        asin_or_uuid=asin,
         body=body,
         session=session,
         client_session=client_session,

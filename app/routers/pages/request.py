@@ -29,7 +29,7 @@ async def add_request(
 ):
     try:
         book = await create_request(
-            asin=asin,
+            asin_or_uuid=asin,
             session=session,
             client_session=client_session,
             background_task=background_task,

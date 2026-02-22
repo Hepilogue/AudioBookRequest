@@ -1,4 +1,4 @@
-# To dermine what is currently being queried:
+import uuid
 from contextlib import contextmanager
 from typing import Literal
 
@@ -10,7 +10,7 @@ from sqlmodel import Session, select
 
 from app.internal.audiobookshelf.client import abs_trigger_scan
 from app.internal.audiobookshelf.config import abs_config
-from app.internal.models import Audiobook, ProwlarrSource, User
+from app.internal.models import Audiobook, ManualBookRequest, ProwlarrSource, User
 from app.internal.prowlarr.prowlarr import query_prowlarr, start_download
 from app.internal.prowlarr.util import prowlarr_config
 from app.internal.ranking.download_ranking import rank_sources
@@ -20,20 +20,20 @@ querying: set[str] = set()
 
 
 @contextmanager
-def manage_queried(asin: str):
-    querying.add(asin)
+def manage_queried(asin_or_uuid: str):
+    querying.add(asin_or_uuid)
     try:
         yield
     finally:
         try:
-            querying.remove(asin)
+            querying.remove(asin_or_uuid)
         except KeyError:
             pass
 
 
 class QueryResult(pydantic.BaseModel):
     sources: list[ProwlarrSource] | None
-    book: Audiobook
+    book: Audiobook | ManualBookRequest
     state: Literal["ok", "querying", "uncached"]
     error_message: str | None = None
 
@@ -43,7 +43,7 @@ class QueryResult(pydantic.BaseModel):
 
 
 async def query_sources(
-    asin: str,
+    asin_or_uuid: str,
     session: Session,
     client_session: ClientSession,
     requester: User,
@@ -51,18 +51,24 @@ async def query_sources(
     start_auto_download: bool = False,
     only_return_if_cached: bool = False,
 ) -> QueryResult:
-    book = session.exec(select(Audiobook).where(Audiobook.asin == asin)).first()
+    # First check if the asin_or_uuid is a UUID (manual request)
+    try:
+        uuid_obj = uuid.UUID(asin_or_uuid)
+        book = session.get(ManualBookRequest, uuid_obj)
+    except ValueError:
+        # Standard Audiobook ASIN
+        book = session.get(Audiobook, asin_or_uuid)
     if not book:
         raise HTTPException(status_code=404, detail="Book not found")
 
-    if asin in querying:
+    if asin_or_uuid in querying:
         return QueryResult(
             sources=None,
             book=book,
             state="querying",
         )
 
-    with manage_queried(asin):
+    with manage_queried(asin_or_uuid):
         prowlarr_config.raise_if_invalid(session)
 
         sources = await query_prowlarr(
@@ -80,7 +86,8 @@ async def query_sources(
                 state="uncached",
             )
 
-        ranked = await rank_sources(session, client_session, sources, book)
+        is_manual = isinstance(book, ManualBookRequest)
+        ranked = await rank_sources(session, client_session, sources, book, is_manual)
 
         # start download if requested
         if start_auto_download and not book.downloaded and len(ranked) > 0:
@@ -90,12 +97,12 @@ async def query_sources(
                 guid=ranked[0].guid,
                 indexer_id=ranked[0].indexer_id,
                 requester=requester,
-                book_asin=asin,
+                book_asin=asin_or_uuid,
                 prowlarr_source=ranked[0],
             )
             if resp.ok:
                 same_books = session.exec(
-                    select(Audiobook).where(Audiobook.asin == asin)
+                    select(Audiobook).where(Audiobook.asin == asin_or_uuid)
                 ).all()
                 for b in same_books:
                     b.downloaded = True
@@ -117,11 +124,11 @@ async def query_sources(
         )
 
 
-async def background_start_query(asin: str, requester: User, auto_download: bool):
+async def background_start_query(asin_or_uuid: str, requester: User, auto_download: bool):
     with next(get_session()) as session:
         async with ClientSession(timeout=aiohttp.ClientTimeout(60)) as client_session:
             await query_sources(
-                asin=asin,
+                asin_or_uuid=asin_or_uuid,
                 session=session,
                 client_session=client_session,
                 start_auto_download=auto_download,

@@ -8,7 +8,7 @@ from app.internal.indexers.configuration import (
     Configurations,
     indexer_configuration_cache,
 )
-from app.internal.models import Audiobook, ProwlarrSource
+from app.internal.models import Audiobook, ManualBookRequest, ProwlarrSource
 
 
 class SessionContainer(BaseModel, arbitrary_types_allowed=True):
@@ -54,7 +54,7 @@ class AbstractIndexer[T: Configurations](ABC):
     @abstractmethod
     async def setup(
         self,
-        book: Audiobook,
+        book: Audiobook | ManualBookRequest,
         container: SessionContainer,
         configurations: object,
     ) -> None:

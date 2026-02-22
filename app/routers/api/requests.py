@@ -55,13 +55,13 @@ class DownloadSourceBody(BaseModel):
     indexer_id: int
 
 
-@router.post("/{asin}", response_model=Audiobook)
+@router.post("/{asin_or_uuid}", response_model=Audiobook)
 async def create_request(
     session: Annotated[Session, Depends(get_session)],
     client_session: Annotated[ClientSession, Depends(get_connection)],
     user: Annotated[DetailedUser, Security(AnyAuth())],
     background_task: BackgroundTasks,
-    asin: str,
+    asin_or_uuid: str,
     region: audible_region_type | None = None,
 ) -> AudiobookWithRequests:
     if region is None:
@@ -69,17 +69,17 @@ async def create_request(
     if audible_regions.get(region) is None:
         raise HTTPException(status_code=400, detail="Invalid region")
 
-    book = session.get(Audiobook, asin)
+    book = session.get(Audiobook, asin_or_uuid)
     if not book:
         try:
-            book = await get_single_book(client_session, asin=asin)
+            book = await get_single_book(client_session, asin=asin_or_uuid)
             if book:
                 session.add(book)
                 session.commit()
         except Exception as e:
             logger.error(
                 "Failed to fetch book details from Audible",
-                asin=asin,
+                asin=asin_or_uuid,
                 error=str(e),
             )
         if not book:
@@ -87,17 +87,17 @@ async def create_request(
 
     if not session.exec(
         select(AudiobookRequest).where(
-            AudiobookRequest.asin == asin,
+            AudiobookRequest.asin == asin_or_uuid,
             AudiobookRequest.user_username == user.username,
         )
     ).first():
-        book_request = AudiobookRequest(asin=asin, user_username=user.username)
+        book_request = AudiobookRequest(asin=asin_or_uuid, user_username=user.username)
         session.add(book_request)
         session.commit()
         logger.info(
             "Added new audiobook request",
             username=censor(user.username),
-            asin=asin,
+            asin=asin_or_uuid,
         )
     else:
         raise HTTPException(status_code=409, detail="Book already requested")
@@ -106,20 +106,20 @@ async def create_request(
         send_all_notifications,
         event_type=EventEnum.on_new_request,
         requester=User.model_validate(user),
-        book_asin=asin,
+        book_asin=asin_or_uuid,
     )
 
     if quality_config.get_auto_download(session) and user.is_above(GroupEnum.trusted):
         # start querying and downloading if auto download is enabled
         background_task.add_task(
             background_start_query,
-            asin=asin,
+            asin_or_uuid=asin_or_uuid,
             requester=User.model_validate(user),
             auto_download=True,
         )
 
     requests = session.exec(
-        select(AudiobookRequest).where(AudiobookRequest.asin == asin)
+        select(AudiobookRequest).where(AudiobookRequest.asin == asin_or_uuid)
     ).all()
 
     return AudiobookWithRequests(
@@ -140,20 +140,20 @@ async def list_requests(
     return results
 
 
-@router.delete("/{asin}")
+@router.delete("/{asin_or_uuid}")
 async def delete_request(
-    asin: str,
+    asin_or_uuid: str,
     session: Annotated[Session, Depends(get_session)],
     user: Annotated[DetailedUser, Security(AnyAuth())],
 ):
     if user.is_admin():
         session.execute(
-            delete(AudiobookRequest).where(col(AudiobookRequest.asin) == asin)
+            delete(AudiobookRequest).where(col(AudiobookRequest.asin) == asin_or_uuid)
         )
     else:
         session.execute(
             delete(AudiobookRequest).where(
-                (col(AudiobookRequest.asin) == asin)
+                (col(AudiobookRequest.asin) == asin_or_uuid)
                 & (col(AudiobookRequest.user_username) == user.username)
             )
         )
@@ -161,14 +161,14 @@ async def delete_request(
     return Response(status_code=204)
 
 
-@router.patch("/{asin}/downloaded")
+@router.patch("/{asin_or_uuid}/downloaded")
 async def mark_downloaded(
-    asin: str,
+    asin_or_uuid: str,
     session: Annotated[Session, Depends(get_session)],
     background_task: BackgroundTasks,
     _: Annotated[DetailedUser, Security(AnyAuth(GroupEnum.admin))],
 ):
-    book = session.exec(select(Audiobook).where(Audiobook.asin == asin)).first()
+    book = session.exec(select(Audiobook).where(Audiobook.asin == asin_or_uuid)).first()
     if book:
         book.downloaded = True
         session.add(book)
@@ -178,7 +178,7 @@ async def mark_downloaded(
             send_all_notifications,
             event_type=EventEnum.on_successful_download,
             requester=None,
-            book_asin=asin,
+            book_asin=asin_or_uuid,
         )
         return Response(status_code=204)
     raise HTTPException(status_code=404, detail="Book not found")
@@ -298,11 +298,11 @@ async def delete_manual_request(
 
 
 @router.post(
-    "/{asin}/refresh",
+    "/{asin_or_uuid}/refresh",
     description="Refresh the sources from prowlarr for a book",
 )
 async def refresh_source(
-    asin: str,
+    asin_or_uuid: str,
     session: Annotated[Session, Depends(get_session)],
     client_session: Annotated[ClientSession, Depends(get_connection)],
     user: Annotated[DetailedUser, Security(AnyAuth())],
@@ -310,7 +310,7 @@ async def refresh_source(
 ):
     # causes the sources to be placed into cache once they're done
     await query_sources(
-        asin=asin,
+        asin_or_uuid=asin_or_uuid,
         session=session,
         client_session=client_session,
         force_refresh=force_refresh,
@@ -319,9 +319,9 @@ async def refresh_source(
     return Response(status_code=202)
 
 
-@router.get("/{asin}/sources", response_model=QueryResult)
+@router.get("/{asin_or_uuid}/sources", response_model=QueryResult)
 async def list_sources(
-    asin: str,
+    asin_or_uuid: str,
     session: Annotated[Session, Depends(get_session)],
     client_session: Annotated[ClientSession, Depends(get_connection)],
     admin_user: Annotated[DetailedUser, Security(AnyAuth(GroupEnum.admin))],
@@ -333,7 +333,7 @@ async def list_sources(
         raise HTTPException(status_code=400, detail="Prowlarr misconfigured")
 
     result = await query_sources(
-        asin,
+        asin_or_uuid,
         session=session,
         client_session=client_session,
         requester=admin_user,
@@ -342,9 +342,9 @@ async def list_sources(
     return result
 
 
-@router.post("/{asin}/download")
+@router.post("/{asin_or_uuid}/download")
 async def download_book(
-    asin: str,
+    asin_or_uuid: str,
     background_task: BackgroundTasks,
     body: DownloadSourceBody,
     session: Annotated[Session, Depends(get_session)],
@@ -358,18 +358,41 @@ async def download_book(
             guid=body.guid,
             indexer_id=body.indexer_id,
             requester=admin_user,
-            book_asin=asin,
+            book_asin=asin_or_uuid,
         )
     except ProwlarrMisconfigured as e:
         raise HTTPException(status_code=500, detail=str(e))
     if not resp.ok:
         raise HTTPException(status_code=500, detail="Failed to start download")
 
-    book = session.exec(select(Audiobook).where(Audiobook.asin == asin)).first()
-    if book:
-        book.downloaded = True
-        session.add(book)
-        session.commit()
+    # Check if this was a manual request (UUID)
+    try:
+        uuid_obj = uuid.UUID(asin_or_uuid)
+        book_req = session.get(ManualBookRequest, uuid_obj)
+        if book_req:
+            book_req.downloaded = True
+            session.add(book_req)
+            session.commit()
+            
+            background_task.add_task(
+                send_all_manual_notifications,
+                event_type=EventEnum.on_successful_download,
+                book_request=ManualBookRequest.model_validate(book_req),
+            )
+            
+    except ValueError:
+        book = session.exec(select(Audiobook).where(Audiobook.asin == asin_or_uuid)).first()
+        if book:
+            book.downloaded = True
+            session.add(book)
+            session.commit()
+
+            background_task.add_task(
+                send_all_notifications,
+                event_type=EventEnum.on_successful_download,
+                requester=None,
+                book_asin=asin_or_uuid,
+            )
 
     if abs_config.is_valid(session):
         background_task.add_task(background_abs_trigger_scan)
@@ -377,16 +400,16 @@ async def download_book(
     return Response(status_code=204)
 
 
-@router.post("/{asin}/auto-download")
+@router.post("/{asin_or_uuid}/auto-download")
 async def start_auto_download_endpoint(
-    asin: str,
+    asin_or_uuid: str,
     session: Annotated[Session, Depends(get_session)],
     client_session: Annotated[ClientSession, Depends(get_connection)],
     user: Annotated[DetailedUser, Security(AnyAuth(GroupEnum.trusted))],
 ):
     try:
         await query_sources(
-            asin=asin,
+            asin_or_uuid=asin_or_uuid,
             start_auto_download=True,
             session=session,
             client_session=client_session,

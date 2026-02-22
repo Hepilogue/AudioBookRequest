@@ -14,7 +14,7 @@ from app.internal.indexers.configuration import (
     IndexerConfiguration,
     ValuedConfigurations,
 )
-from app.internal.models import Audiobook, ProwlarrSource
+from app.internal.models import Audiobook, ManualBookRequest, ProwlarrSource
 from app.util.log import logger
 
 
@@ -80,7 +80,7 @@ class MamIndexer(AbstractIndexer[MamConfigurations]):
     @override
     async def setup(  # pyright: ignore[reportIncompatibleMethodOverride]
         self,
-        book: Audiobook,
+        book: Audiobook | ManualBookRequest,
         container: SessionContainer,
         configurations: ValuedMamConfigurations,
     ):

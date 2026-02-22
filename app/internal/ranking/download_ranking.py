@@ -7,7 +7,7 @@ from aiohttp import ClientSession
 from rapidfuzz import fuzz, utils
 from sqlmodel import Session
 
-from app.internal.models import Audiobook, ProwlarrSource
+from app.internal.models import Audiobook, ManualBookRequest, ProwlarrSource
 from app.internal.ranking.quality import quality_config
 from app.internal.ranking.quality_extract import Quality, extract_qualities
 from app.util.log import logger
@@ -22,7 +22,8 @@ async def rank_sources(
     session: Session,
     client_session: ClientSession,
     sources: list[ProwlarrSource],
-    book: Audiobook,
+    book: Audiobook | ManualBookRequest,
+    is_manual: bool = False,
 ) -> list[ProwlarrSource]:
     async def get_qualities(source: ProwlarrSource):
         qualities = await extract_qualities(session, client_session, source, book)
@@ -31,7 +32,7 @@ async def rank_sources(
     coros = [get_qualities(source) for source in sources]
     rank_sources = [x for y in await asyncio.gather(*coros) for x in y]
 
-    compare = CompareSource(session, book)
+    compare = CompareSource(session, book, is_manual)
     rank_sources.sort(key=cmp_to_key(compare))
 
     return [rs.source for rs in rank_sources]
@@ -39,9 +40,10 @@ async def rank_sources(
 
 @final
 class CompareSource:
-    def __init__(self, session: Session, book: Audiobook):
+    def __init__(self, session: Session, book: Audiobook | ManualBookRequest, is_manual: bool = False):
         self.session = session
         self.book = book
+        self.is_manual = is_manual
         self.compare_order = [
             self._compare_valid,
             self._compare_title,
@@ -73,6 +75,9 @@ class CompareSource:
         return default_compare
 
     def _is_valid_quality(self, a: RankSource) -> bool:
+        if self.is_manual:
+            return True
+
         match a.quality.file_format:
             case "flac":
                 quality_range = quality_config.get_range(self.session, "quality_flac")
