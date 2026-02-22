@@ -27,6 +27,8 @@ class ApplicationSettings(BaseModel):
     log_level: str = "INFO"
     base_url: str = ""
     disable_censor: bool = False
+    forwarded_allow_ips: str = "127.0.0.1"
+    """Trusted proxy IPs for forwarded headers. Used by Uvicorn's --forwarded-allow-ips."""
 
     default_region: str = "us"
     """Default region used in the search"""

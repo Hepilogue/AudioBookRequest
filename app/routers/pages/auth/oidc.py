@@ -62,9 +62,13 @@ async def login_oidc(
     if not username_claim:
         raise InvalidOIDCConfiguration("Missing OIDC username claim")
 
+    # M2M token validation
     auth_redirect_uri = str(request.url_for("login_oidc"))
-    if oidc_config.get_redirect_https(session):
+    scheme = oidc_config.get_redirect_scheme(session)
+    if scheme == "https":
         auth_redirect_uri = auth_redirect_uri.replace("http:", "https:")
+    elif scheme == "http":
+        auth_redirect_uri = auth_redirect_uri.replace("https:", "http:")
 
     data = {
         "grant_type": "authorization_code",

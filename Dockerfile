@@ -5,14 +5,14 @@ WORKDIR /app
 RUN apk add --no-cache curl build-base && \
     ARCH=$(uname -m) && \
     if [ "$ARCH" = "x86_64" ]; then \
-        TAILWIND_ARCH="x64"; \
+    TAILWIND_ARCH="x64"; \
     elif [ "$ARCH" = "aarch64" ]; then \
-        TAILWIND_ARCH="arm64"; \
+    TAILWIND_ARCH="arm64"; \
     else \
-        echo "Unsupported architecture: $ARCH" && exit 1; \
+    echo "Unsupported architecture: $ARCH" && exit 1; \
     fi && \
     curl -L "https://github.com/tailwindlabs/tailwindcss/releases/download/v4.1.18/tailwindcss-linux-${TAILWIND_ARCH}-musl" \
-         -o /bin/tailwindcss && \
+    -o /bin/tailwindcss && \
     chmod +x /bin/tailwindcss
 
 RUN mkdir -p static && \
@@ -50,4 +50,4 @@ ENV ABR_APP__PORT=8000
 ARG VERSION
 ENV ABR_APP__VERSION=$VERSION
 
-CMD /app/.venv/bin/alembic upgrade heads && /app/.venv/bin/fastapi run --port $ABR_APP__PORT
+CMD /app/.venv/bin/alembic upgrade heads && /app/.venv/bin/fastapi run --port $ABR_APP__PORT --proxy-headers --forwarded-allow-ips="${ABR_APP__FORWARDED_ALLOW_IPS:-127.0.0.1}"

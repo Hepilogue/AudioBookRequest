@@ -1,4 +1,4 @@
-from typing import Annotated, Optional
+from typing import Annotated, Literal, Optional
 
 from aiohttp import ClientSession
 from fastapi import APIRouter, Depends, HTTPException, Response, Security
@@ -29,7 +29,7 @@ class SecuritySettings(BaseModel):
     oidc_scope: str
     oidc_username_claim: str
     oidc_group_claim: str
-    oidc_redirect_https: bool
+    oidc_redirect_scheme: Literal["http", "https", "auto"]
     oidc_logout_url: str
     force_login_type: LoginTypeEnum | None
 
@@ -55,7 +55,7 @@ def get_security_settings(
         oidc_scope=oidc_config.get(session, "oidc_scope", ""),
         oidc_username_claim=oidc_config.get(session, "oidc_username_claim", ""),
         oidc_group_claim=oidc_config.get(session, "oidc_group_claim", ""),
-        oidc_redirect_https=oidc_config.get_redirect_https(session),
+        oidc_redirect_scheme=oidc_config.get_redirect_scheme(session),
         oidc_logout_url=oidc_config.get(session, "oidc_logout_url", ""),
         force_login_type=force_login_type,
     )
@@ -80,7 +80,7 @@ class UpdateSecuritySettings(BaseModel):
     oidc_scope: Optional[str] = None
     oidc_username_claim: Optional[str] = None
     oidc_group_claim: Optional[str] = None
-    oidc_redirect_https: Optional[bool] = None
+    oidc_redirect_scheme: Optional[Literal["http", "https", "auto"]] = None
     oidc_logout_url: Optional[str] = None
 
 
@@ -130,12 +130,13 @@ async def update_security_settings(
             oidc_config.set(session, "oidc_scope", body.oidc_scope)
         if body.oidc_username_claim:
             oidc_config.set(session, "oidc_username_claim", body.oidc_username_claim)
-        if body.oidc_redirect_https:
-            oidc_config.set(
-                session,
-                "oidc_redirect_https",
-                "true" if body.oidc_redirect_https else "",
-            )
+        if scheme := body.oidc_redirect_scheme:
+            if scheme not in ["http", "https", "auto"]:
+                logger.debug(
+                    "Invalid OIDC redirect scheme. Defaulting to 'auto'.", scheme=scheme
+                )
+                scheme = "auto"
+            oidc_config.set(session, "oidc_redirect_scheme", scheme)
         if body.oidc_logout_url:
             oidc_config.set(session, "oidc_logout_url", body.oidc_logout_url)
         if body.oidc_group_claim is not None:

@@ -52,6 +52,8 @@ async def login(
             redirect_uri=redirect_uri,
         )
 
+    # OIDC login
+
     authorize_endpoint = oidc_config.get(session, "oidc_authorize_endpoint")
     client_id = oidc_config.get(session, "oidc_client_id")
     scope = oidc_config.get(session, "oidc_scope") or "openid"
@@ -61,13 +63,24 @@ async def login(
         raise InvalidOIDCConfiguration("Missing OIDC client ID")
 
     auth_redirect_uri = str(request.url_for("login_oidc"))
-    if oidc_config.get_redirect_https(session):
+    scheme = oidc_config.get_redirect_scheme(session)
+
+    if scheme == "https":
         auth_redirect_uri = auth_redirect_uri.replace("http:", "https:")
+    elif scheme == "http":
+        auth_redirect_uri = auth_redirect_uri.replace("https:", "http:")
+    elif scheme == "auto":
+        logger.debug(
+            "Using auto scheme for OIDC redirect URI, using request scheme",
+            request_scheme=request.url.scheme,
+            forwarded_proto=request.headers.get("X-Forwarded-Proto"),
+        )
 
     logger.info(
         "Redirecting to OIDC login",
         authorize_endpoint=authorize_endpoint,
         redirect_uri=auth_redirect_uri,
+        redirect_scheme=scheme,
     )
 
     state = jwt.encode(
