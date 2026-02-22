@@ -51,7 +51,8 @@
     {% endif %}
     <tbody>
         {% for book in results %}
-            <tr id="{{ book.id }}" class="text-xs lg:text-sm {% if book.downloaded %}bg-success/30{% endif %}">
+            <tr id="{{ book.id }}"
+                class="text-xs lg:text-sm {% if book.downloaded %}bg-success/30{% endif %}">
                 <th>
                     {{ loop.index }}
                 </th>
@@ -76,7 +77,7 @@
                 <td>
                     {{ book.user_username }}
                 </td>
-                <td class="grid grid-cols-2 min-w-32 gap-1">
+                <td class="grid grid-cols-2 min-w-32 gap-1 w-fit ml-auto">
                     <a preload
                        title="Torrent Sources"
                        href="{{ base_url }}/wishlist/sources/{{ book.id }}"

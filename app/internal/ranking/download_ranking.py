@@ -40,7 +40,12 @@ async def rank_sources(
 
 @final
 class CompareSource:
-    def __init__(self, session: Session, book: Audiobook | ManualBookRequest, is_manual: bool = False):
+    def __init__(
+        self,
+        session: Session,
+        book: Audiobook | ManualBookRequest,
+        is_manual: bool = False,
+    ):
         self.session = session
         self.book = book
         self.is_manual = is_manual

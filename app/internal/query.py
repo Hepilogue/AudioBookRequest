@@ -124,7 +124,9 @@ async def query_sources(
         )
 
 
-async def background_start_query(asin_or_uuid: str, requester: User, auto_download: bool):
+async def background_start_query(
+    asin_or_uuid: str, requester: User, auto_download: bool
+):
     with next(get_session()) as session:
         async with ClientSession(timeout=aiohttp.ClientTimeout(60)) as client_session:
             await query_sources(

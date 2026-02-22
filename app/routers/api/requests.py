@@ -373,15 +373,17 @@ async def download_book(
             book_req.downloaded = True
             session.add(book_req)
             session.commit()
-            
+
             background_task.add_task(
                 send_all_manual_notifications,
                 event_type=EventEnum.on_successful_download,
                 book_request=ManualBookRequest.model_validate(book_req),
             )
-            
+
     except ValueError:
-        book = session.exec(select(Audiobook).where(Audiobook.asin == asin_or_uuid)).first()
+        book = session.exec(
+            select(Audiobook).where(Audiobook.asin == asin_or_uuid)
+        ).first()
         if book:
             book.downloaded = True
             session.add(book)
