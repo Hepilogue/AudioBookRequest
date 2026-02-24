@@ -254,7 +254,7 @@ class Notification(BaseSQLModel, table=True):
 
     @property
     def serialized_headers(self):
-        return html.escape(json.dumps(self.headers))
+        return json.dumps(self.headers)
 
 
 class APIKeyResponse(BaseModel):

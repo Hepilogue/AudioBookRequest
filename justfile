@@ -5,14 +5,14 @@ alias m := migrate
 alias cr := create_revision
 alias tw := tailwind
 
+dev: migrate
+    uv run fastapi dev
+
 migrate:
     uv run alembic upgrade heads
 
 create_revision *MESSAGE:
     uv run alembic revision --autogenerate -m "{{ MESSAGE }}"
-
-dev: migrate
-    uv run fastapi dev
 
 install_daisy:
     curl -sLo static/daisyui.mjs https://github.com/saadeghi/daisyui/releases/latest/download/daisyui.mjs
