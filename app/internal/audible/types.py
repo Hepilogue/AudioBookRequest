@@ -64,14 +64,19 @@ class AudibleProduct(BaseModel):
     subtitle: str | None = None
 
     def to_audiobook(self) -> Audiobook:
+        cover_image = self.product_images.get("500")
+        if not cover_image:
+            covers = list(self.product_images.values())
+            if covers:  # default to first cover other than the one keyed by "500"
+                cover_image = covers[0]
+
         return Audiobook(
             asin=self.asin,
             title=self.title,
             subtitle=self.subtitle,
             authors=[author.name for author in self.authors],
             narrators=[narrator.name for narrator in self.narrators],
-            cover_image=self.product_images.get("500")
-            or list(self.product_images.values())[0],
+            cover_image=cover_image,
             release_date=datetime.fromisoformat(self.release_date),
             runtime_length_min=self.runtime_length_min,
         )
