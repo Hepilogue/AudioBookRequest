@@ -42,6 +42,7 @@ async def read_search(
         region = get_region_from_settings()
     try:
         results = await search_books(
+            session=session,
             client_session=client_session,
             user=user,
             query=query,

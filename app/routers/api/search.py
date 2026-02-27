@@ -2,6 +2,7 @@ from typing import Annotated
 
 from aiohttp import ClientSession
 from fastapi import APIRouter, Depends, HTTPException, Query, Security
+from sqlmodel import Session
 
 from app.internal.audible.search import get_search_suggestions, search_audible_books
 from app.internal.audible.types import (
@@ -10,14 +11,16 @@ from app.internal.audible.types import (
     get_region_from_settings,
 )
 from app.internal.auth.authentication import AnyAuth, DetailedUser
-from app.internal.models import AudiobookWithRequests
+from app.internal.models import Audiobook, AudiobookWithRequests
 from app.util.connection import get_connection
+from app.util.db import get_session
 
 router = APIRouter(prefix="/search", tags=["Search"])
 
 
 @router.get("", response_model=list[AudiobookWithRequests])
 async def search_books(
+    session: Annotated[Session, Depends(get_session)],
     client_session: Annotated[ClientSession, Depends(get_connection)],
     user: Annotated[DetailedUser, Security(AnyAuth())],
     query: Annotated[str | None, Query(alias="q")] = None,
@@ -40,13 +43,18 @@ async def search_books(
     else:
         results = []
 
+    # refreshes the "requests"
+    merged: list[Audiobook] = []
+    for res in results:
+        merged.append(session.merge(res))
+
     return [
         AudiobookWithRequests(
             book=book,
             requests=book.requests,
             username=user.username,
         )
-        for book in results
+        for book in merged
     ]
 
 
