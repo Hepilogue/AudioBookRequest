@@ -130,7 +130,7 @@ async def send_notification(
         async with ClientSession() as client_session:
             resp = await _send(body, notification, client_session)
         logger.info(
-            "Notification sent successfully",
+            "Individual notification sent successfully",
             url=notification.url,
             response=resp,
         )
