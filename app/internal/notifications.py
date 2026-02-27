@@ -20,7 +20,8 @@ PLACEHOLDER_COVER_URL = "https://picsum.photos/id/24/500/500"
 
 def _replace_variables(
     template: str,
-    user: User | None = None,
+    /,
+    users: list[User] | None = None,
     book_title: str | None = None,
     book_authors: str | None = None,
     book_narrators: str | None = None,
@@ -30,10 +31,17 @@ def _replace_variables(
 ):
     if other_replacements is None:
         other_replacements = {}
-    if user:
+    if users:
+        user = users[0]
         template = template.replace("{eventUser}", user.username)
         if user.extra_data:
             template = template.replace("{eventUserExtraData}", user.extra_data)
+        joined = ", ".join([u.username for u in users])
+        template = template.replace("{joinedUsers}", joined)
+        joined_extra = ", ".join([u.extra_data for u in users if u.extra_data])
+        if joined_extra:
+            template = template.replace("{joinedUsersExtraData}", joined_extra)
+
     if book_title:
         template = template.replace("{bookTitle}", book_title)
     if book_authors:
@@ -83,16 +91,16 @@ async def _send(
 async def send_notification(
     session: Session,
     notification: Notification,
-    requester: User | None = None,
     book_asin: str | None = None,
     other_replacements: dict[str, str] | None = None,
-):
+) -> str | None:
     if other_replacements is None:
         other_replacements = {}
     book_title = None
     book_authors = None
     book_narrators = None
     book_cover = None
+    requesters: list[User] | None = None
     if book_asin:
         book = session.exec(
             select(Audiobook).where(Audiobook.asin == book_asin)
@@ -102,16 +110,17 @@ async def send_notification(
             book_authors = ",".join(book.authors)
             book_narrators = ",".join(book.narrators)
             book_cover = book.cover_image
+            requesters = [req.user for req in book.requests]
 
     body = _replace_variables(
         notification.body,
-        requester,
-        book_title,
-        book_authors,
-        book_narrators,
-        book_cover,
-        notification.event.value,
-        other_replacements,
+        users=requesters,
+        book_title=book_title,
+        book_authors=book_authors,
+        book_narrators=book_narrators,
+        book_cover=book_cover,
+        event_type=notification.event.value,
+        other_replacements=other_replacements,
     )
 
     if notification.body_type == NotificationBodyTypeEnum.json:
@@ -137,7 +146,7 @@ async def send_notification(
         return resp
     except Exception as e:
         logger.error(
-            "Failed to send notification",
+            "Failed to send individual notification",
             url=notification.url,
             body=body,
             error=str(e),
@@ -147,7 +156,6 @@ async def send_notification(
 
 async def send_all_notifications(
     event_type: EventEnum,
-    requester: User | None = None,
     book_asin: str | None = None,
     other_replacements: dict[str, str] | None = None,
 ):
@@ -160,25 +168,12 @@ async def send_all_notifications(
             )
         ).all()
         for notification in notifications:
-            succ = await send_notification(
+            await send_notification(
                 session=session,
                 notification=notification,
-                requester=requester,
                 book_asin=book_asin,
                 other_replacements=other_replacements,
             )
-            if succ:
-                logger.info(
-                    "Notification sent successfully",
-                    url=notification.url,
-                    asin=book_asin,
-                )
-            else:
-                logger.error(
-                    "Failed to send notification",
-                    url=notification.url,
-                    asin=book_asin,
-                )
 
 
 async def send_manual_notification(
@@ -196,13 +191,12 @@ async def send_manual_notification(
 
         body = _replace_variables(
             notification.body,
-            requester,
-            book.title,
-            book_authors,
-            book_narrators,
-            None,
-            notification.event.value,
-            other_replacements,
+            users=[requester] if requester else None,
+            book_title=book.title,
+            book_authors=book_authors,
+            book_narrators=book_narrators,
+            event_type=notification.event.value,
+            other_replacements=other_replacements,
         )
 
         if notification.body_type == NotificationBodyTypeEnum.json:
@@ -221,7 +215,7 @@ async def send_manual_notification(
             return await _send(body, notification, client_session)
 
     except Exception as e:
-        logger.error("Failed to send notification", error=str(e))
+        logger.error("Failed to send manual notification", error=str(e))
         return None
 
 
@@ -242,13 +236,9 @@ async def send_all_manual_notifications(
             )
         ).all()
         for notif in notifications:
-            succ = await send_manual_notification(
+            await send_manual_notification(
                 notification=notif,
                 book=book_request,
                 requester=user,
                 other_replacements=other_replacements,
             )
-            if succ:
-                logger.info("Manual notification sent successfully", url=notif.url)
-            else:
-                logger.error("Failed to send manual notification", url=notif.url)

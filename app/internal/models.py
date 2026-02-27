@@ -128,6 +128,7 @@ class AudiobookRequest(BaseSQLModel, table=True):
     )
 
     audiobook: Audiobook = Relationship(back_populates="requests")  # pyright: ignore[reportAny]
+    user: User = Relationship()  # pyright: ignore[reportAny]
 
     model_config: SQLModelConfig = cast(
         SQLModelConfig, cast(object, ConfigDict(arbitrary_types_allowed=True))

@@ -31,7 +31,6 @@ from app.internal.models import (
     EventEnum,
     GroupEnum,
     ManualBookRequest,
-    User,
 )
 from app.internal.notifications import (
     send_all_manual_notifications,
@@ -105,7 +104,6 @@ async def create_request(
     background_task.add_task(
         send_all_notifications,
         event_type=EventEnum.on_new_request,
-        requester=User.model_validate(user),
         book_asin=asin_or_uuid,
     )
 
@@ -114,7 +112,6 @@ async def create_request(
         background_task.add_task(
             background_start_query,
             asin_or_uuid=asin_or_uuid,
-            requester=User.model_validate(user),
             auto_download=True,
         )
 
@@ -177,7 +174,6 @@ async def mark_downloaded(
         background_task.add_task(
             send_all_notifications,
             event_type=EventEnum.on_successful_download,
-            requester=None,
             book_asin=asin_or_uuid,
         )
         return Response(status_code=204)
@@ -308,13 +304,13 @@ async def refresh_source(
     user: Annotated[DetailedUser, Security(AnyAuth())],
     force_refresh: bool = False,
 ):
+    _ = user
     # causes the sources to be placed into cache once they're done
     await query_sources(
         asin_or_uuid=asin_or_uuid,
         session=session,
         client_session=client_session,
         force_refresh=force_refresh,
-        requester=User.model_validate(user),
     )
     return Response(status_code=202)
 
@@ -327,6 +323,7 @@ async def list_sources(
     admin_user: Annotated[DetailedUser, Security(AnyAuth(GroupEnum.admin))],
     only_cached: bool = False,
 ):
+    _ = admin_user
     try:
         prowlarr_config.raise_if_invalid(session)
     except ProwlarrMisconfigured:
@@ -336,7 +333,6 @@ async def list_sources(
         asin_or_uuid,
         session=session,
         client_session=client_session,
-        requester=admin_user,
         only_return_if_cached=only_cached,
     )
     return result
@@ -351,13 +347,13 @@ async def download_book(
     client_session: Annotated[ClientSession, Depends(get_connection)],
     admin_user: Annotated[DetailedUser, Security(AnyAuth(GroupEnum.admin))],
 ):
+    _ = admin_user
     try:
         resp = await start_download(
             session=session,
             client_session=client_session,
             guid=body.guid,
             indexer_id=body.indexer_id,
-            requester=admin_user,
             book_asin=asin_or_uuid,
         )
     except ProwlarrMisconfigured as e:
@@ -392,7 +388,6 @@ async def download_book(
             background_task.add_task(
                 send_all_notifications,
                 event_type=EventEnum.on_successful_download,
-                requester=None,
                 book_asin=asin_or_uuid,
             )
 
@@ -407,15 +402,15 @@ async def start_auto_download_endpoint(
     asin_or_uuid: str,
     session: Annotated[Session, Depends(get_session)],
     client_session: Annotated[ClientSession, Depends(get_connection)],
-    user: Annotated[DetailedUser, Security(AnyAuth(GroupEnum.trusted))],
+    trusted_user: Annotated[DetailedUser, Security(AnyAuth(GroupEnum.trusted))],
 ):
+    _ = trusted_user
     try:
         await query_sources(
             asin_or_uuid=asin_or_uuid,
             start_auto_download=True,
             session=session,
             client_session=client_session,
-            requester=user,
         )
     except HTTPException as e:
         raise ToastException(e.detail) from None

@@ -10,7 +10,7 @@ from sqlmodel import Session, select
 
 from app.internal.audiobookshelf.client import abs_trigger_scan
 from app.internal.audiobookshelf.config import abs_config
-from app.internal.models import Audiobook, ManualBookRequest, ProwlarrSource, User
+from app.internal.models import Audiobook, ManualBookRequest, ProwlarrSource
 from app.internal.prowlarr.prowlarr import query_prowlarr, start_download
 from app.internal.prowlarr.util import prowlarr_config
 from app.internal.ranking.download_ranking import rank_sources
@@ -46,7 +46,6 @@ async def query_sources(
     asin_or_uuid: str,
     session: Session,
     client_session: ClientSession,
-    requester: User,
     force_refresh: bool = False,
     start_auto_download: bool = False,
     only_return_if_cached: bool = False,
@@ -96,7 +95,6 @@ async def query_sources(
                 client_session=client_session,
                 guid=ranked[0].guid,
                 indexer_id=ranked[0].indexer_id,
-                requester=requester,
                 book_asin=asin_or_uuid,
                 prowlarr_source=ranked[0],
             )
@@ -124,9 +122,7 @@ async def query_sources(
         )
 
 
-async def background_start_query(
-    asin_or_uuid: str, requester: User, auto_download: bool
-):
+async def background_start_query(asin_or_uuid: str, auto_download: bool):
     with next(get_session()) as session:
         async with ClientSession(timeout=aiohttp.ClientTimeout(60)) as client_session:
             await query_sources(
@@ -134,5 +130,4 @@ async def background_start_query(
                 session=session,
                 client_session=client_session,
                 start_auto_download=auto_download,
-                requester=requester,
             )
