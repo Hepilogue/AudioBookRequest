@@ -185,7 +185,7 @@ async def query_prowlarr(
     if len(x := prowlarr_config.get_categories(session)) > 0:
         params["categories"] = x
 
-    if indexer_ids is not None:
+    if indexer_ids:
         params["indexerIds"] = indexer_ids
 
     url = posixpath.join(base_url, f"api/v1/search?{urlencode(params, doseq=True)}")

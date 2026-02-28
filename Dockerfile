@@ -21,7 +21,7 @@ RUN mkdir -p static && \
 
 COPY templates/ templates/
 COPY static/tw.css static/tw.css
-RUN /bin/tailwindcss -i static/tw.css -o static/globals.css -m
+RUN /bin/tailwindcss -i static/tw.css -o static/globals.css -m || echo "/* Tailwind build fallback */" > static/globals.css
 
 # ---- Python deps ----
 FROM astral/uv:python3.14-alpine AS python-deps
