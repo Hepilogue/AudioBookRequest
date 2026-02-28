@@ -20,7 +20,18 @@
             <icons.PhotoOff />
         {% endif %}
         <!-- Request Button -->
-        <button class="absolute top-0 right-0 rounded-none rounded-bl-md btn-sm btn btn-square items-center justify-center flex {% if book.downloaded or already_requested %}btn-ghost bg-success text-neutral/20{% else %}btn-info{% endif %}"
+        {% if book.downloaded or already_requested %}
+            {% set btn_tip = "Already added" %}
+            {% set btn_cls = "btn-ghost bg-success text-neutral/20" %}
+        {% elif auto_start_download and user.can_download() %}
+            {% set btn_tip = "Download now" %}
+            {% set btn_cls = "btn-primary" %}
+        {% else %}
+            {% set btn_tip = "Add to wishlist" %}
+            {% set btn_cls = "btn-info" %}
+        {% endif %}
+        <button class="absolute top-0 right-0 rounded-none rounded-bl-md btn-sm btn btn-square items-center justify-center flex tooltip tooltip-left {{ btn_cls }}"
+                data-tip="{{ btn_tip }}"
                 hx-post="{{ base_url }}/request/hx-add/{{ book.asin }}"
                 hx-disabled-elt="this"
                 hx-target="closest .book-card"
@@ -28,19 +39,11 @@
                 hx-on:click="this.disabled = true;"
                 {% if book.downloaded or already_requested %}disabled{% endif %}>
             {% if book.downloaded or already_requested %}
-                <span>
-                    <icons.Checkmark />
-                </span>
+                <span><icons.Checkmark /></span>
+            {% elif auto_start_download and user.can_download() %}
+                <span><icons.Download /></span>
             {% else %}
-                {% if auto_start_download and user.can_download() %}
-                    <span>
-                        <icons.Download />
-                    </span>
-                {% else %}
-                    <span>
-                        <icons.Plus />
-                    </span>
-                {% endif %}
+                <span><icons.Plus /></span>
             {% endif %}
         </button>
     </div>

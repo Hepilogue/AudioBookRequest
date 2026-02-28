@@ -1,7 +1,6 @@
 import secrets
 import time
 from datetime import datetime
-from math import inf
 from typing import Annotated, final
 
 import pydantic
@@ -315,7 +314,7 @@ class ABRAuth(SecurityBase):
         session: Session,
     ) -> User:
         logger.debug("Getting user from OIDC session", url=request.url)
-        if request.session.get("exp", inf) < time.time():
+        if request.session.get("exp", 0) < time.time():
             logger.debug("OIDC session expired", exp=request.session.get("exp"))
             raise RequiresLoginException()
         return await self._get_session_auth(request, session)

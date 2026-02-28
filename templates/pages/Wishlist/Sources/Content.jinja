@@ -40,41 +40,27 @@
         <table class="table table-zebra table-pin-rows min-w-240">
             <thead>
                 <tr>
-                    <th>
-                    </th>
-                    <th>
-                        title
-                    </th>
-                    <th>
-                        author(s)
-                    </th>
-                    <th>
-                        narrator(s)
-                    </th>
-                    <th>
-                        indexer
-                    </th>
-                    <th>
-                        flags
-                    </th>
-                    <th>
-                        seed / leech (or grabs)
-                    </th>
-                    <th>
-                        size (MB)
-                    </th>
-                    <th>
-                        publish date
-                    </th>
-                    <th>
-                    </th>
+                    <th>#</th>
+                    <th>Title</th>
+                    <th>Author(s)</th>
+                    <th>Narrator(s)</th>
+                    <th>Indexer</th>
+                    <th>Flags</th>
+                    <th>Seeds / Leeches</th>
+                    <th>Size (MB)</th>
+                    <th>Published</th>
+                    <th>Download</th>
                 </tr>
             </thead>
             <tbody>
                 {% for source in (result.sources or []) %}
-                    <tr class="text-xs lg:text-sm {% if loop.index==1 %}bg-success dark:text-gray-700{% endif %}">
+                    <tr class="text-xs lg:text-sm {% if loop.index==1 %}bg-success/20{% endif %}">
                         <th>
-                            {{ loop.index }}
+                            {% if loop.index == 1 %}
+                                <span class="badge badge-success badge-sm">Best</span>
+                            {% else %}
+                                {{ loop.index }}
+                            {% endif %}
                         </th>
                         <td>
                             {% if source.info_url %}
@@ -97,26 +83,25 @@
                             {{ source.indexer }}
                         </td>
                         <td>
-                            {{ source.indexer_flags|join(", ") }}
+                            {% if source.indexer_flags %}
+                                {% for flag in source.indexer_flags %}
+                                    <span class="badge badge-outline badge-sm">{{ flag }}</span>
+                                {% endfor %}
+                            {% endif %}
                         </td>
                         {% if source.protocol == "torrent" %}
                             <td>
-                                {{ source.seeders }} / {{ source.leechers }}
+                                <span class="text-success font-medium">{{ source.seeders }}</span>
+                                <span class="opacity-50"> / {{ source.leechers }}</span>
                             </td>
                         {% else %}
-                            <td>
-                                {{ source.grabs }} grabs
-                            </td>
+                            <td>{{ source.grabs }} grabs</td>
                         {% endif %}
-                        <td>
-                            {{ source.size_MB }}
-                        </td>
-                        <td>
-                            {{ source.publish_date.strftime("%d. %b %Y") }}
-                        </td>
+                        <td>{{ source.size_MB }}</td>
+                        <td>{{ source.publish_date.strftime("%d %b %Y") }}</td>
                         <td>
                             <label id="form-{{ loop.index }}"
-                                   class="swap swap-flip"
+                                   class="swap swap-flip btn btn-sm btn-primary"
                                    title="Send to download client">
                                 <input id="checkbox-{{ loop.index }}"
                                        type="checkbox"
@@ -127,11 +112,13 @@
                                        hx-on::after-request="if (event.detail.successful) this.disabled = true" />
                                 <input type="hidden" name="indexer_id" value="{{ source.indexer_id }}" />
                                 <input type="hidden" name="guid" value="{{ source.guid }}" />
-                                <span class="swap-off">
+                                <span class="swap-off flex items-center gap-1">
                                     <icons.Download />
+                                    <span class="hidden sm:inline">Download</span>
                                 </span>
-                                <span class="swap-on text-success">
+                                <span class="swap-on flex items-center gap-1">
                                     <icons.Checkmark />
+                                    <span class="hidden sm:inline">Sent!</span>
                                 </span>
                             </label>
                         </td>

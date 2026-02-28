@@ -78,8 +78,6 @@ def get_popular_books(
                 request_count=request_count,
             )
         )
-        logger.debug(f"Popular book: {book.asin} (requests: {request_count})")
-
     return popular
 
 

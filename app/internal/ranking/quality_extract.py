@@ -145,7 +145,7 @@ def get_torrent_info(data: bytes, book_seconds: int) -> list[Quality]:
         parsed = _DecodedTorrent.model_validate(
             tp.decode(data, hash_fields={"pieces": (1, False)})
         )
-    except tp.InvalidTorrentDataException, ValidationError:
+    except (tp.InvalidTorrentDataException, ValidationError):
         return []
     actual_sizes: dict[FileFormat, int] = defaultdict(int)
     file_formats = set[str]()

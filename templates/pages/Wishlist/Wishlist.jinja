@@ -137,13 +137,13 @@
 
                     <td class="grid grid-cols-2 min-w-32 gap-1 w-fit ml-auto">
                         <a preload
-                           title="Torrent Sources"
+                           data-tip="Torrent Sources"
                            href="{{ base_url }}/wishlist/sources/{{ book.asin }}"
                            {% if not user.is_admin() %}disabled{% endif %}
-                           class="btn btn-square">
+                           class="btn btn-square btn-ghost tooltip tooltip-left">
                             <icons.List />
                         </a>
-                        <button {% if book.downloaded %}title="Downloaded"class="btn btn-square btn-ghost bg-success text-neutral/20" {% else %} title="Automatic Download" class="btn btn-square" {% endif %}
+                        <button {% if book.downloaded %}data-tip="Already downloaded" class="btn btn-square btn-success tooltip tooltip-left" {% else %}data-tip="Auto Download" class="btn btn-square btn-primary tooltip tooltip-left"{% endif %}
                                 {% if not user.can_download() or book.downloaded %}disabled{% endif %}
                                 hx-post="{{ base_url }}/wishlist/hx-auto-download/{{ book.asin }}"
                                 hx-swap="outerHTML"
@@ -151,8 +151,8 @@
                                 hx-disabled-elt="this">
                             <icons.Download />
                         </button>
-                        <button title="Remove"
-                                class="btn btn-square"
+                        <button data-tip="Remove from wishlist"
+                                class="btn btn-square btn-error btn-outline tooltip tooltip-left"
                                 hx-delete="{{ base_url }}/wishlist/hx-delete/{{ book.asin }}{%- if page.__eq__('downloaded') -%}?downloaded=true{%- endif -%}"
                                 hx-swap="outerHTML"
                                 hx-target="#book-table-body"
@@ -160,14 +160,14 @@
                             <icons.Ban />
                         </button>
                         {% if book.downloaded %}
-                            <button class="btn btn-square btn-ghost bg-success text-neutral/20"
+                            <button class="btn btn-square btn-success tooltip tooltip-left"
                                     disabled
-                                    title="Set as downloaded">
+                                    data-tip="Already downloaded">
                                 <icons.Checkmark />
                             </button>
                         {% else %}
-                            <button class="btn btn-square"
-                                    title="Set as downloaded"
+                            <button class="btn btn-square btn-success btn-outline tooltip tooltip-left"
+                                    data-tip="Mark as downloaded"
                                     hx-patch="{{ base_url }}/wishlist/downloaded/hx-add/{{ book.asin }}"
                                     {% if not user.is_admin() %}disabled{% endif %}
                                     hx-swap="outerHTML"

@@ -79,19 +79,19 @@
                 </td>
                 <td class="grid grid-cols-2 min-w-32 gap-1 w-fit ml-auto">
                     <a preload
-                       title="Torrent Sources"
+                       data-tip="Torrent Sources"
                        href="{{ base_url }}/wishlist/sources/{{ book.id }}"
                        {% if not user.is_admin() %}disabled{% endif %}
-                       class="btn btn-square">
+                       class="btn btn-square btn-ghost tooltip tooltip-left">
                         <icons.List />
                     </a>
-                    <a class="btn btn-square"
+                    <a class="btn btn-square btn-ghost tooltip tooltip-left"
                        href="{{ base_url }}/search/manual?id={{ book.id }}"
-                       title="Edit">
+                       data-tip="Edit">
                         <icons.Pencil />
                     </a>
-                    <button title="Remove"
-                            class="btn btn-square"
+                    <button data-tip="Remove"
+                            class="btn btn-square btn-error btn-outline tooltip tooltip-left"
                             {% if not user.is_admin() %}disabled{% endif %}
                             hx-delete="{{ base_url }}/wishlist/manual/hx-delete/{{ book.id }}"
                             hx-swap="outerHTML"
@@ -100,14 +100,14 @@
                         <icons.Ban />
                     </button>
                     {% if book.downloaded %}
-                        <button class="btn btn-square btn-ghost bg-success text-neutral/20"
+                        <button class="btn btn-square btn-success tooltip tooltip-left"
                                 disabled
-                                title="Set as downloaded">
+                                data-tip="Already downloaded">
                             <icons.Checkmark />
                         </button>
                     {% else %}
-                        <button class="btn btn-square"
-                                title="Set as downloaded"
+                        <button class="btn btn-square btn-success btn-outline tooltip tooltip-left"
+                                data-tip="Mark as downloaded"
                                 {% if not user.is_admin() %}disabled{% endif %}
                                 hx-patch="{{ base_url }}/wishlist/manual/hx-add/{{ book.id }}"
                                 hx-swap="outerHTML"

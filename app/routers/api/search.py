@@ -2,7 +2,7 @@ from typing import Annotated
 
 from aiohttp import ClientSession
 from fastapi import APIRouter, Depends, HTTPException, Query, Security
-from sqlmodel import Session
+from sqlmodel import Session, col, select
 
 from app.internal.audible.search import get_search_suggestions, search_audible_books
 from app.internal.audible.types import (
@@ -43,10 +43,34 @@ async def search_books(
     else:
         results = []
 
-    # refreshes the "requests"
-    merged: list[Audiobook] = []
-    for res in results:
-        merged.append(session.merge(res))
+    # Upsert books into DB so they can be found when the user requests them.
+    # We preserve the `downloaded` flag for books already in the DB.
+    if results:
+        asins = [r.asin for r in results]
+        existing = {
+            b.asin: b
+            for b in session.exec(
+                select(Audiobook).where(col(Audiobook.asin).in_(asins))
+            ).all()
+        }
+        merged: list[Audiobook] = []
+        for res in results:
+            if res.asin in existing:
+                book = existing[res.asin]
+                book.title = res.title
+                book.subtitle = res.subtitle
+                book.authors = res.authors
+                book.narrators = res.narrators
+                book.cover_image = res.cover_image
+                book.release_date = res.release_date
+                book.runtime_length_min = res.runtime_length_min
+                merged.append(book)
+            else:
+                session.add(res)
+                merged.append(res)
+        session.commit()
+    else:
+        merged = []
 
     return [
         AudiobookWithRequests(
